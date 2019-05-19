@@ -3,6 +3,8 @@ import pandas as pd
 import os
 import tensorflow as tf
 from sklearn import preprocessing
+import seaborn as sns
+from matplotlib import pyplot as plt
 
 # Hyper parameter
 learning_rate=0.01
@@ -14,19 +16,32 @@ step_size=epochs*batch_size
 
 train_data_path="../input/train.csv"
 raw_dataset=pd.read_csv(train_data_path)
-features=['Sex','Age','Pclass','Fare','Cabin','Embarked']
+features=['Sex','Age','Pclass','SibSp','Parch','Fare','Cabin','Embarked']
 train_data=raw_dataset[features]
 
 # Preprocess data
 labelEncoder = preprocessing.LabelEncoder()
 train_data['Sex'] = labelEncoder.fit_transform(train_data['Sex'])
-train_data['Cabin'] = train_data['Cabin'].fillna(train_data['Cabin'].mode()[0])
+train_data['Cabin'] = train_data['Cabin'].fillna('X')
 train_data['Cabin'] = labelEncoder.fit_transform(train_data['Cabin'])
 train_data['Embarked'] = train_data['Embarked'].fillna(train_data['Embarked'].mode()[0])
 train_data['Embarked'] = labelEncoder.fit_transform(train_data['Embarked'])
 
 # Normalize numeric data
+# Fill NA on age with correlated value
+index_NaN_age = list(train_data["Age"][train_data["Age"].isnull()].index)
+for i in index_NaN_age :
+    age_med = train_data["Age"].median()
+    age_pred = train_data["Age"][((train_data['SibSp'] == train_data.loc[i,'SibSp']) & (train_data['Parch'] == train_data.loc[i,'Parch']) & (train_data['Pclass'] == train_data.loc[i,'Pclass']))].median()
+    if not np.isnan(age_pred) :
+        train_data.loc[i,'Age'] = age_pred
+    else :
+        train_data.loc[i,'Age'] = age_med
+
 train_data['Age']=(train_data['Age']-train_data['Age'].mean())/train_data['Age'].std()
+
+# Distribution of "Fare" is distorted. So, map with log funtion 
+train_data["Fare"] = train_data["Fare"].map(lambda i: np.log(i) if i > 0 else 0)
 train_data['Fare']=(train_data['Fare']-train_data['Fare'].mean())/train_data['Fare'].std()
 
 input_dim=len(features)
