@@ -47,6 +47,7 @@ y_np=create_lavels(raw_dataset.Survived)
 
 x=tf.placeholder(tf.float32,[None,input_dim])
 y=tf.placeholder(tf.float32,[None,output_dim])
+z_pred=[]
 
 # Simple liner model y=|x|*w+b
 def create_model(x,weight,bias):
@@ -66,6 +67,24 @@ optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
 
 # Initialization
 init = tf.initialize_all_variables()
+
+sub_data_path="../input/test.csv"
+sub_raw_dataset=pd.read_csv(sub_data_path)
+sub_data=sub_raw_dataset[features]
+
+# Preprocess data
+sub_data['Sex'] = labelEncoder.fit_transform(sub_data['Sex'])
+sub_data['Cabin'] = sub_data['Cabin'].fillna(sub_data['Cabin'].mode()[0])
+sub_data['Cabin'] = labelEncoder.fit_transform(sub_data['Cabin'])
+sub_data['Embarked'] = sub_data['Embarked'].fillna(sub_data['Embarked'].mode()[0])
+sub_data['Embarked'] = labelEncoder.fit_transform(sub_data['Embarked'])
+
+# Normalize numeric data
+sub_data['Age']=(sub_data['Age']-sub_data['Age'].mean())/sub_data['Age'].std()
+sub_data['Fare']=(sub_data['Fare']-sub_data['Fare'].mean())/sub_data['Fare'].std()
+
+x_sub=np.array(sub_data.fillna(train_data.mean()))
+pred_test=[]
 
 # Train my own model
 with tf.Session() as sess:
@@ -88,9 +107,16 @@ with tf.Session() as sess:
     
     print("Optimization Finished!")
     # Test model
-    print(tf.argmax(y, 1))
     correct_prediction = tf.equal(tf.argmax(z, 1), tf.argmax(y, 1))
     # Calculate accuracy
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
     print("Accuracy:", accuracy.eval({x: x_test, y: y_test}))
-
+    # Create submisson data
+    pred_test = sess.run(z, feed_dict={x: x_sub})
+    
+# Export csv
+df = pd.DataFrame(sub_raw_dataset["PassengerId"])
+pred=[1 if i > 0.5 else 0 for i in pred_test[:,0]]
+tmpdf=pd.DataFrame(pred,columns=['Survived'])
+df = df.merge(tmpdf, left_index=True, right_index=True)
+df.to_csv("submission_LR.csv",header=True, index=False)
