@@ -29,15 +29,17 @@ train_data['Embarked'] = labelEncoder.fit_transform(train_data['Embarked'])
 
 # Normalize numeric data
 # Fill NA on age with correlated value
-index_NaN_age = list(train_data["Age"][train_data["Age"].isnull()].index)
-for i in index_NaN_age :
-    age_med = train_data["Age"].median()
-    age_pred = train_data["Age"][((train_data['SibSp'] == train_data.loc[i,'SibSp']) & (train_data['Parch'] == train_data.loc[i,'Parch']) & (train_data['Pclass'] == train_data.loc[i,'Pclass']))].median()
+def age_normalize(df):
+    index_NaN_age = list(df['Age'][df['Age'].isnull()].index)
+    for i in index_NaN_age :
+        age_med = df['Age'].median()
+        age_pred = df['Age'][((df['SibSp'] == df.loc[i,'SibSp']) & (df['Parch'] == df.loc[i,'Parch']) & (df['Pclass'] == df.loc[i,'Pclass']))].median()
     if not np.isnan(age_pred) :
-        train_data.loc[i,'Age'] = age_pred
+        df.loc[i,'Age'] = age_pred
     else :
-        train_data.loc[i,'Age'] = age_med
+        df.loc[i,'Age'] = age_med
 
+age_normalize(train_data)
 train_data['Age']=(train_data['Age']-train_data['Age'].mean())/train_data['Age'].std()
 
 # Distribution of "Fare" is distorted. So, map with log funtion 
@@ -89,13 +91,15 @@ sub_data=sub_raw_dataset[features]
 
 # Preprocess data
 sub_data['Sex'] = labelEncoder.fit_transform(sub_data['Sex'])
-sub_data['Cabin'] = sub_data['Cabin'].fillna(sub_data['Cabin'].mode()[0])
+sub_data['Cabin'] = sub_data['Cabin'].fillna('X')
 sub_data['Cabin'] = labelEncoder.fit_transform(sub_data['Cabin'])
 sub_data['Embarked'] = sub_data['Embarked'].fillna(sub_data['Embarked'].mode()[0])
 sub_data['Embarked'] = labelEncoder.fit_transform(sub_data['Embarked'])
 
 # Normalize numeric data
+age_normalize(sub_data)
 sub_data['Age']=(sub_data['Age']-sub_data['Age'].mean())/sub_data['Age'].std()
+sub_data["Fare"] = sub_data["Fare"].map(lambda i: np.log(i) if i > 0 else 0)
 sub_data['Fare']=(sub_data['Fare']-sub_data['Fare'].mean())/sub_data['Fare'].std()
 
 x_sub=np.array(sub_data.fillna(train_data.mean()))
